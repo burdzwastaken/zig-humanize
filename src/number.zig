@@ -43,7 +43,6 @@ const FormatConfig = struct {
 
 fn parseFormat(format: []const u8) FormatConfig {
     if (format.len == 0) {
-        // Default: US format with 2 decimal places
         return .{
             .thousand_sep = ',',
             .decimal_sep = '.',
@@ -131,8 +130,6 @@ fn formatWithConfig(allocator: std.mem.Allocator, n: f64, config: FormatConfig) 
         i += 1;
     }
 
-    const num_commas = if (int_len > 3) (int_len - 1) / 3 else 0;
-
     var result = std.ArrayList(u8).init(allocator);
     errdefer result.deinit();
 
@@ -154,8 +151,6 @@ fn formatWithConfig(allocator: std.mem.Allocator, n: f64, config: FormatConfig) 
         try result.append(c);
         digit_count += 1;
     }
-
-    _ = num_commas;
 
     if (config.precision) |prec| {
         if (prec > 0 and frac_part > 0) {

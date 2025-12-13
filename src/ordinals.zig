@@ -2,26 +2,21 @@
 
 const std = @import("std");
 
+const Writer = std.Io.Writer;
+
 /// Comptime ordinal suffix
 pub inline fn comptimeOrdinalSuffix(comptime x: i64) []const u8 {
     comptime {
-        const abs_x: u64 = if (x < 0) @intCast(-x) else @intCast(x);
-        const last_two = abs_x % 100;
-        if (last_two >= 11 and last_two <= 13) {
-            return "th";
-        }
-        return switch (abs_x % 10) {
-            1 => "st",
-            2 => "nd",
-            3 => "rd",
-            else => "th",
-        };
+        return getSuffix(@abs(x));
     }
 }
 
 /// Returns "st", "nd", "rd", or "th"
 pub fn ordinalSuffix(x: i64) []const u8 {
-    const abs_x: u64 = if (x < 0) @intCast(-x) else @intCast(x);
+    return getSuffix(@abs(x));
+}
+
+fn getSuffix(abs_x: u64) []const u8 {
     const last_two = abs_x % 100;
     if (last_two >= 11 and last_two <= 13) {
         return "th";
@@ -42,7 +37,7 @@ pub const Ordinal = struct {
         return .{ .value = value };
     }
 
-    pub fn format(self: Ordinal, w: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(self: Ordinal, w: *Writer) Writer.Error!void {
         try w.print("{d}{s}", .{ self.value, ordinalSuffix(self.value) });
     }
 };

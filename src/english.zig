@@ -2,6 +2,8 @@
 
 const std = @import("std");
 
+const Writer = std.Io.Writer;
+
 /// Comptime pluralization with automatic rules and special cases
 pub fn comptimePluralWord(comptime quantity: i64, comptime singular: []const u8, comptime plural_override: []const u8) []const u8 {
     if (quantity == 1 or quantity == -1) {
@@ -18,8 +20,7 @@ pub fn comptimePluralWord(comptime quantity: i64, comptime singular: []const u8,
 fn comptimeAutoPluralize(comptime word: []const u8) []const u8 {
     if (word.len == 0) return "";
 
-    const special = getSpecialPlural(word);
-    if (special) |s| return s;
+    if (getSpecialPlural(word)) |s| return s;
 
     const last = word[word.len - 1];
     const last_two = if (word.len >= 2) word[word.len - 2 ..] else "";
@@ -49,8 +50,8 @@ fn comptimeAutoPluralize(comptime word: []const u8) []const u8 {
 }
 
 fn isVowel(c: u8) bool {
-    return switch (c) {
-        'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U' => true,
+    return switch (std.ascii.toLower(c)) {
+        'a', 'e', 'i', 'o', 'u' => true,
         else => false,
     };
 }
@@ -58,53 +59,43 @@ fn isVowel(c: u8) bool {
 fn isOException(comptime word: []const u8) bool {
     const exceptions = [_][]const u8{ "photo", "piano", "halo", "zero", "auto", "memo", "solo" };
     for (exceptions) |exc| {
-        if (eqlIgnoreCase(word, exc)) return true;
+        if (std.ascii.eqlIgnoreCase(word, exc)) return true;
     }
     return false;
 }
 
-fn getSpecialPlural(comptime word: []const u8) ?[]const u8 {
-    const specials = [_]struct { s: []const u8, p: []const u8 }{
-        .{ .s = "index", .p = "indices" },
-        .{ .s = "matrix", .p = "matrices" },
-        .{ .s = "vertex", .p = "vertices" },
-        .{ .s = "radius", .p = "radii" },
-        .{ .s = "focus", .p = "foci" },
-        .{ .s = "nucleus", .p = "nuclei" },
-        .{ .s = "syllabus", .p = "syllabi" },
-        .{ .s = "fungus", .p = "fungi" },
-        .{ .s = "cactus", .p = "cacti" },
-        .{ .s = "thesis", .p = "theses" },
-        .{ .s = "crisis", .p = "crises" },
-        .{ .s = "phenomenon", .p = "phenomena" },
-        .{ .s = "criterion", .p = "criteria" },
-        .{ .s = "datum", .p = "data" },
-        .{ .s = "child", .p = "children" },
-        .{ .s = "person", .p = "people" },
-        .{ .s = "man", .p = "men" },
-        .{ .s = "woman", .p = "women" },
-        .{ .s = "foot", .p = "feet" },
-        .{ .s = "tooth", .p = "teeth" },
-        .{ .s = "goose", .p = "geese" },
-        .{ .s = "mouse", .p = "mice" },
-        .{ .s = "louse", .p = "lice" },
-        .{ .s = "ox", .p = "oxen" },
-    };
+const special_plurals = [_]struct { s: []const u8, p: []const u8 }{
+    .{ .s = "index", .p = "indices" },
+    .{ .s = "matrix", .p = "matrices" },
+    .{ .s = "vertex", .p = "vertices" },
+    .{ .s = "radius", .p = "radii" },
+    .{ .s = "focus", .p = "foci" },
+    .{ .s = "nucleus", .p = "nuclei" },
+    .{ .s = "syllabus", .p = "syllabi" },
+    .{ .s = "fungus", .p = "fungi" },
+    .{ .s = "cactus", .p = "cacti" },
+    .{ .s = "thesis", .p = "theses" },
+    .{ .s = "crisis", .p = "crises" },
+    .{ .s = "phenomenon", .p = "phenomena" },
+    .{ .s = "criterion", .p = "criteria" },
+    .{ .s = "datum", .p = "data" },
+    .{ .s = "child", .p = "children" },
+    .{ .s = "person", .p = "people" },
+    .{ .s = "man", .p = "men" },
+    .{ .s = "woman", .p = "women" },
+    .{ .s = "foot", .p = "feet" },
+    .{ .s = "tooth", .p = "teeth" },
+    .{ .s = "goose", .p = "geese" },
+    .{ .s = "mouse", .p = "mice" },
+    .{ .s = "louse", .p = "lice" },
+    .{ .s = "ox", .p = "oxen" },
+};
 
-    for (specials) |sp| {
-        if (eqlIgnoreCase(word, sp.s)) return sp.p;
+fn getSpecialPlural(word: []const u8) ?[]const u8 {
+    for (special_plurals) |sp| {
+        if (std.ascii.eqlIgnoreCase(word, sp.s)) return sp.p;
     }
     return null;
-}
-
-fn eqlIgnoreCase(a: []const u8, b: []const u8) bool {
-    if (a.len != b.len) return false;
-    for (a, b) |ac, bc| {
-        const al = if (ac >= 'A' and ac <= 'Z') ac + 32 else ac;
-        const bl = if (bc >= 'A' and bc <= 'Z') bc + 32 else bc;
-        if (al != bl) return false;
-    }
-    return true;
 }
 
 /// Formatter for pluralized words
@@ -121,7 +112,7 @@ pub const PluralWord = struct {
         return .{ .quantity = self.quantity, .singular = self.singular, .plural_override = p };
     }
 
-    pub fn format(self: PluralWord, w: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(self: PluralWord, w: *Writer) Writer.Error!void {
         if (self.quantity == 1 or self.quantity == -1) {
             try w.writeAll(self.singular);
         } else if (self.plural_override.len > 0) {
@@ -132,15 +123,27 @@ pub const PluralWord = struct {
     }
 };
 
-fn runtimePluralize(w: *std.io.Writer, word: []const u8) std.io.Writer.Error!void {
+fn runtimePluralize(w: *Writer, word: []const u8) Writer.Error!void {
     if (word.len == 0) return;
 
+    if (getSpecialPlural(word)) |p| {
+        try w.writeAll(p);
+        return;
+    }
+
     const last = word[word.len - 1];
+    const last_two = if (word.len >= 2) word[word.len - 2 ..] else "";
 
     if (last == 's' or last == 'x' or last == 'z') {
         try w.print("{s}es", .{word});
+    } else if (std.mem.eql(u8, last_two, "sh") or std.mem.eql(u8, last_two, "ch")) {
+        try w.print("{s}es", .{word});
     } else if (last == 'y' and word.len >= 2 and !isVowel(word[word.len - 2])) {
         try w.print("{s}ies", .{word[0 .. word.len - 1]});
+    } else if (last == 'f') {
+        try w.print("{s}ves", .{word[0 .. word.len - 1]});
+    } else if (std.mem.eql(u8, last_two, "fe")) {
+        try w.print("{s}ves", .{word[0 .. word.len - 2]});
     } else {
         try w.print("{s}s", .{word});
     }
@@ -160,7 +163,7 @@ pub const Plural = struct {
         return .{ .quantity = self.quantity, .singular = self.singular, .plural_override = p };
     }
 
-    pub fn format(self: Plural, w: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(self: Plural, w: *Writer) Writer.Error!void {
         try w.print("{d} ", .{self.quantity});
         const pw = PluralWord{ .quantity = self.quantity, .singular = self.singular, .plural_override = self.plural_override };
         try pw.format(w);
@@ -193,7 +196,7 @@ pub const WordSeries = struct {
         return .{ .words = self.words, .conjunction = self.conjunction, .oxford = true };
     }
 
-    pub fn format(self: WordSeries, w: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(self: WordSeries, w: *Writer) Writer.Error!void {
         if (self.words.len == 0) return;
 
         if (self.words.len == 1) {
@@ -249,6 +252,16 @@ test "comptime y ending" {
 test "plural formatter" {
     try std.testing.expectFmt("1 object", "{f}", .{plural(1, "object")});
     try std.testing.expectFmt("42 objects", "{f}", .{plural(42, "object")});
+}
+
+test "plural formatter special" {
+    try std.testing.expectFmt("2 children", "{f}", .{plural(2, "child")});
+    try std.testing.expectFmt("2 people", "{f}", .{plural(2, "person")});
+}
+
+test "plural formatter sh/ch endings" {
+    try std.testing.expectFmt("2 brushes", "{f}", .{plural(2, "brush")});
+    try std.testing.expectFmt("2 watches", "{f}", .{plural(2, "watch")});
 }
 
 test "wordSeries" {

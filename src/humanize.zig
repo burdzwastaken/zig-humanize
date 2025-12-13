@@ -11,6 +11,10 @@ pub const english = @import("english.zig");
 pub const Bytes = bytes.Bytes;
 pub const IBytes = bytes.IBytes;
 pub const parseBytes = bytes.parseBytes;
+pub const comptimeBytes = bytes.comptimeBytes;
+pub const comptimeIBytes = bytes.comptimeIBytes;
+pub const comptimeBytesWithPrecision = bytes.comptimeBytesWithPrecision;
+pub const comptimeIBytesWithPrecision = bytes.comptimeIBytesWithPrecision;
 
 pub const Byte = bytes.Byte;
 pub const KiByte = bytes.KiByte;
@@ -32,10 +36,13 @@ pub const commaFloat = comma.commaFloat;
 
 pub const ordinal = ordinals.ordinal;
 pub const ordinalSuffix = ordinals.ordinalSuffix;
+pub const comptimeOrdinal = ordinals.comptimeOrdinal;
 
 pub const siPrefix = si.si;
 pub const computeSI = si.computeSI;
 pub const parseSI = si.parseSI;
+pub const comptimeSI = si.comptimeSI;
+pub const comptimeSIWithPrecision = si.comptimeSIWithPrecision;
 
 pub const relTime = times.relTime;
 pub const RelTimeMagnitude = times.RelTimeMagnitude;

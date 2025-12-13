@@ -3,6 +3,8 @@
 const std = @import("std");
 const ftoa = @import("ftoa.zig");
 
+const Writer = std.Io.Writer;
+
 const Prefix = struct {
     exponent: i8,
     symbol: []const u8,
@@ -85,7 +87,7 @@ pub const SI = struct {
         return .{ .value = self.value, .unit = self.unit, .precision = p };
     }
 
-    pub fn format(self: SI, w: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(self: SI, w: *Writer) Writer.Error!void {
         const result = computeSI(self.value);
 
         if (self.precision) |p| {
@@ -199,6 +201,58 @@ test "SI with precision" {
     try std.testing.expectFmt("1 MB", "{f}", .{si(1000000, "B").withPrecision(0)});
 }
 
+/// `comptimeSI(1000000, "B")` -> `"1 MB"`
+pub inline fn comptimeSI(comptime value: f64, comptime unit: []const u8) []const u8 {
+    comptime {
+        return comptimeSIImpl(value, unit, 4);
+    }
+}
+
+pub inline fn comptimeSIWithPrecision(comptime value: f64, comptime unit: []const u8, comptime precision: u8) []const u8 {
+    comptime {
+        return comptimeSIImpl(value, unit, precision);
+    }
+}
+
+inline fn comptimeSIImpl(comptime value: f64, comptime unit: []const u8, comptime precision: u8) []const u8 {
+    comptime {
+        const result = computeSIComptime(value);
+        return std.fmt.comptimePrint("{s} {s}{s}", .{ ftoa.comptimeFormatFloat(result.value, precision), result.prefix, unit });
+    }
+}
+
+inline fn computeSIComptime(comptime input: f64) SIResult {
+    comptime {
+        if (input == 0 or std.math.isNan(input) or std.math.isInf(input)) {
+            return .{ .value = input, .prefix = "", .exponent = 0 };
+        }
+
+        const abs_input = @abs(input);
+        const sign: f64 = if (input < 0) -1.0 else 1.0;
+
+        const log_val = @log10(abs_input);
+        const target_exp: i8 = @intFromFloat(@floor(log_val));
+
+        var best_idx: usize = zero_idx;
+        for (prefixes, 0..) |prefix, i| {
+            if (prefix.exponent <= target_exp) {
+                best_idx = i;
+            } else {
+                break;
+            }
+        }
+
+        const exp: f64 = @floatFromInt(prefixes[best_idx].exponent);
+        const adjusted = abs_input / std.math.pow(f64, 10.0, exp);
+
+        return .{
+            .value = sign * adjusted,
+            .prefix = prefixes[best_idx].symbol,
+            .exponent = prefixes[best_idx].exponent,
+        };
+    }
+}
+
 test "parseSI" {
     {
         const result = try parseSI("2.2345 pF");
@@ -215,4 +269,15 @@ test "parseSI" {
         try std.testing.expectApproxEqAbs(@as(f64, 42.0), result.value, 0.001);
         try std.testing.expectEqualStrings("", result.unit);
     }
+}
+
+test "comptimeSI" {
+    try std.testing.expectEqualStrings("1 MB", comptimeSI(1000000, "B"));
+    try std.testing.expectEqualStrings("2.2345 pF", comptimeSI(2.2345e-12, "F"));
+    try std.testing.expectEqualStrings("2.23 nM", comptimeSI(0.00000000223, "M"));
+}
+
+test "comptimeSI with precision" {
+    try std.testing.expectEqualStrings("2.23 pF", comptimeSIWithPrecision(2.2345e-12, "F", 2));
+    try std.testing.expectEqualStrings("1 MB", comptimeSIWithPrecision(1000000, "B", 0));
 }

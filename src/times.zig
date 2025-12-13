@@ -2,12 +2,14 @@
 
 const std = @import("std");
 
+const Writer = std.Io.Writer;
+
 /// Time duration constants in nanoseconds (compatible with std.time)
 pub const Second: i64 = std.time.ns_per_s;
-pub const Minute: i64 = 60 * Second;
-pub const Hour: i64 = 60 * Minute;
-pub const Day: i64 = 24 * Hour;
-pub const Week: i64 = 7 * Day;
+pub const Minute: i64 = std.time.ns_per_min;
+pub const Hour: i64 = std.time.ns_per_hour;
+pub const Day: i64 = std.time.ns_per_day;
+pub const Week: i64 = std.time.ns_per_week;
 pub const Month: i64 = 30 * Day;
 pub const Year: i64 = 365 * Day;
 pub const LongTime: i64 = 37 * Year;
@@ -72,11 +74,10 @@ pub const RelTime = struct {
         };
     }
 
-    pub fn format(self: RelTime, w: *std.io.Writer) std.io.Writer.Error!void {
-        var diff = self.a - self.b;
-        const label = if (diff < 0) self.a_label else self.b_label;
-
-        if (diff < 0) diff = -diff;
+    pub fn format(self: RelTime, w: *Writer) Writer.Error!void {
+        const raw_diff = self.a - self.b;
+        const label = if (raw_diff < 0) self.a_label else self.b_label;
+        const diff: i64 = @intCast(@abs(raw_diff));
 
         for (self.magnitudes) |mag| {
             if (diff < mag.duration) {
@@ -92,7 +93,7 @@ pub const RelTime = struct {
     }
 };
 
-fn formatMagnitude(w: *std.io.Writer, mag: RelTimeMagnitude, diff: i64, label: []const u8) std.io.Writer.Error!void {
+fn formatMagnitude(w: *Writer, mag: RelTimeMagnitude, diff: i64, label: []const u8) Writer.Error!void {
     switch (mag.format) {
         .static => |s| {
             try w.writeAll(s);

@@ -48,9 +48,12 @@ pub fn main() !void {
     try stdout.print("Oxford: {f}\n", .{humanize.oxfordWordSeries(&words)});
 
     // Comptime
-    const comptime_ordinal = comptime humanize.ordinals.comptimeOrdinal(42);
-    const comptime_plural = comptime humanize.english.comptimePluralWord(5, "index", "");
-    try stdout.print("Comptime: {s}, {s}\n", .{ comptime_ordinal, comptime_plural });
+    try stdout.print("\nComptime (baked into binary):\n", .{});
+    try stdout.print("  comptimeOrdinal(42): {s}\n", .{comptime humanize.comptimeOrdinal(42)});
+    try stdout.print("  comptimeBytes(4096): {s}\n", .{comptime humanize.comptimeBytes(4096)});
+    try stdout.print("  comptimeIBytes(4096): {s}\n", .{comptime humanize.comptimeIBytes(4096)});
+    try stdout.print("  comptimeSI(1000000, \"B\"): {s}\n", .{comptime humanize.comptimeSI(1000000, "B")});
+    try stdout.print("  comptimePluralWord(5, \"index\", \"\"): {s}\n", .{comptime humanize.english.comptimePluralWord(5, "index", "")});
 
-    try stdout_writer.end();
+    try stdout.flush();
 }

@@ -2,65 +2,52 @@
 
 const std = @import("std");
 
-pub const max_buf_size = 32;
+pub const Writer = std.Io.Writer;
 
-pub fn formatFloat(w: *std.io.Writer, num: f64) std.io.Writer.Error!void {
-    if (std.math.isNan(num)) {
-        try w.writeAll("NaN");
-        return;
+pub const max_buf_size = std.fmt.float.min_buffer_size;
+
+pub const SpecialFloat = enum { nan, positive_inf, negative_inf, normal };
+
+pub fn classifyFloat(num: f64) SpecialFloat {
+    if (std.math.isNan(num)) return .nan;
+    if (std.math.isPositiveInf(num)) return .positive_inf;
+    if (std.math.isNegativeInf(num)) return .negative_inf;
+    return .normal;
+}
+
+pub fn writeSpecialFloat(w: *Writer, class: SpecialFloat) Writer.Error!bool {
+    switch (class) {
+        .nan => try w.writeAll("NaN"),
+        .positive_inf => try w.writeAll("+Inf"),
+        .negative_inf => try w.writeAll("-Inf"),
+        .normal => return false,
     }
-    if (std.math.isPositiveInf(num)) {
-        try w.writeAll("+Inf");
-        return;
-    }
-    if (std.math.isNegativeInf(num)) {
-        try w.writeAll("-Inf");
-        return;
-    }
+    return true;
+}
+
+pub fn formatFloat(w: *Writer, num: f64) Writer.Error!void {
+    try formatFloatWithPrecision(w, num, 6);
+}
+
+pub fn formatFloatWithPrecision(w: *Writer, num: f64, precision: u8) Writer.Error!void {
+    if (try writeSpecialFloat(w, classifyFloat(num))) return;
 
     var buf: [max_buf_size]u8 = undefined;
-    const formatted = std.fmt.bufPrint(&buf, "{d:.6}", .{num}) catch return error.WriteFailed;
-    const stripped = stripTrailingZeros(formatted);
-    try w.writeAll(stripped);
+    const formatted = std.fmt.float.render(&buf, num, .{
+        .mode = .decimal,
+        .precision = precision,
+    }) catch return error.WriteFailed;
+    try w.writeAll(stripTrailingZeros(formatted));
 }
 
-pub fn formatFloatWithPrecision(w: *std.io.Writer, num: f64, precision: u8) std.io.Writer.Error!void {
-    if (std.math.isNan(num)) {
-        try w.writeAll("NaN");
-        return;
-    }
-    if (std.math.isPositiveInf(num)) {
-        try w.writeAll("+Inf");
-        return;
-    }
-    if (std.math.isNegativeInf(num)) {
-        try w.writeAll("-Inf");
-        return;
-    }
-
-    var buf: [max_buf_size]u8 = undefined;
-    const formatted = formatWithPrecision(&buf, num, precision);
-
-    const stripped = stripTrailingZeros(formatted);
-    try w.writeAll(stripped);
+pub fn bufPrintFloat(buf: []u8, num: f64, precision: u8) []const u8 {
+    return std.fmt.float.render(buf, num, .{
+        .mode = .decimal,
+        .precision = precision,
+    }) catch "?";
 }
 
-fn formatWithPrecision(buf: []u8, num: f64, precision: u8) []const u8 {
-    return switch (precision) {
-        0 => std.fmt.bufPrint(buf, "{d:.0}", .{num}) catch "?",
-        1 => std.fmt.bufPrint(buf, "{d:.1}", .{num}) catch "?",
-        2 => std.fmt.bufPrint(buf, "{d:.2}", .{num}) catch "?",
-        3 => std.fmt.bufPrint(buf, "{d:.3}", .{num}) catch "?",
-        4 => std.fmt.bufPrint(buf, "{d:.4}", .{num}) catch "?",
-        5 => std.fmt.bufPrint(buf, "{d:.5}", .{num}) catch "?",
-        6 => std.fmt.bufPrint(buf, "{d:.6}", .{num}) catch "?",
-        7 => std.fmt.bufPrint(buf, "{d:.7}", .{num}) catch "?",
-        8 => std.fmt.bufPrint(buf, "{d:.8}", .{num}) catch "?",
-        else => std.fmt.bufPrint(buf, "{d:.9}", .{num}) catch "?",
-    };
-}
-
-fn stripTrailingZeros(s: []const u8) []const u8 {
+pub fn stripTrailingZeros(s: []const u8) []const u8 {
     const dot_pos = std.mem.indexOf(u8, s, ".") orelse return s;
 
     var end = s.len;
@@ -73,6 +60,39 @@ fn stripTrailingZeros(s: []const u8) []const u8 {
     }
 
     return s[0..end];
+}
+
+pub inline fn comptimeStripTrailingZeros(comptime s: []const u8) []const u8 {
+    comptime {
+        const dot_pos = std.mem.indexOf(u8, s, ".") orelse return s;
+
+        var end = s.len;
+        while (end > dot_pos + 1 and s[end - 1] == '0') {
+            end -= 1;
+        }
+
+        if (end == dot_pos + 1) {
+            end = dot_pos;
+        }
+
+        return s[0..end];
+    }
+}
+
+pub inline fn comptimeFormatFloat(comptime val: f64, comptime precision: u8) []const u8 {
+    comptime {
+        const raw = switch (precision) {
+            0 => std.fmt.comptimePrint("{d:.0}", .{val}),
+            1 => std.fmt.comptimePrint("{d:.1}", .{val}),
+            2 => std.fmt.comptimePrint("{d:.2}", .{val}),
+            3 => std.fmt.comptimePrint("{d:.3}", .{val}),
+            4 => std.fmt.comptimePrint("{d:.4}", .{val}),
+            5 => std.fmt.comptimePrint("{d:.5}", .{val}),
+            6 => std.fmt.comptimePrint("{d:.6}", .{val}),
+            else => std.fmt.comptimePrint("{d:.6}", .{val}),
+        };
+        return comptimeStripTrailingZeros(raw);
+    }
 }
 
 /// Float formatter
@@ -88,7 +108,7 @@ pub const Float = struct {
         return .{ .value = self.value, .precision = p };
     }
 
-    pub fn format(self: Float, w: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(self: Float, w: *Writer) Writer.Error!void {
         if (self.precision) |p| {
             try formatFloatWithPrecision(w, self.value, p);
         } else {

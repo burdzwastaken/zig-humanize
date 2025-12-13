@@ -32,6 +32,11 @@ humanize.Bytes.si(82854982).withPrecision(2) // "82.85 MB"
 humanize.Bytes.iec(82854982)                 // "79.017 MiB"
 humanize.parseBytes("42 MB")                 // 42000000
 humanize.parseBytes("42 MiB")                // 44040192
+
+// Comptime
+const msg     = humanize.comptimeBytes(4096);                     // "4.096 kB"
+const iec     = humanize.comptimeIBytes(4096);                    // "4 KiB"
+const precise = humanize.comptimeBytesWithPrecision(82854982, 2); // "82.85 MB"
 ```
 
 ### Comma
@@ -51,7 +56,8 @@ humanize.ordinal(3)  // "3rd"
 humanize.ordinal(11) // "11th"
 humanize.ordinal(21) // "21st"
 
-comptime humanize.ordinals.comptimeOrdinal(42) // "42nd"
+// Comptime
+const ord = humanize.comptimeOrdinal(42); // "42nd"
 ```
 
 ### SI Notation
@@ -60,6 +66,10 @@ comptime humanize.ordinals.comptimeOrdinal(42) // "42nd"
 humanize.siPrefix(1000000, "B")    // "1 MB"
 humanize.siPrefix(2.2345e-12, "F") // "2.2345 pF"
 humanize.parseSI("2.5 k")          // 2500.0
+
+// Comptime
+const si_msg  = humanize.comptimeSI(1000000, "B");                    // "1 MB"
+const si_prec = humanize.comptimeSIWithPrecision(2.2345e-12, "F", 2); // "2.23 pF"
 ```
 
 ### Relative Time
@@ -90,7 +100,8 @@ humanize.pluralWord(2, "bus") // "buses"
 humanize.wordSeries(&.{ "foo", "bar", "baz" })       // "foo, bar and baz"
 humanize.oxfordWordSeries(&.{ "foo", "bar", "baz" }) // "foo, bar, and baz"
 
-comptime humanize.english.comptimePluralWord(5, "index", "") // "indices"
+// Comptime
+const plural = humanize.english.comptimePluralWord(5, "index", ""); // "indices"
 ```
 
 ## License

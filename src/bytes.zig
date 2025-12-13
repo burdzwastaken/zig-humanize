@@ -3,6 +3,8 @@
 const std = @import("std");
 const ftoa = @import("ftoa.zig");
 
+const Writer = std.Io.Writer;
+
 /// IEC sizes (binary, base 1024)
 pub const Byte: u64 = 1;
 pub const KiByte: u64 = 1024;
@@ -45,7 +47,7 @@ pub const Bytes = struct {
         return .{ .value = self.value, .base = self.base, .precision = p };
     }
 
-    pub fn format(self: Bytes, w: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(self: Bytes, w: *Writer) Writer.Error!void {
         const base_val: u64 = if (self.base == .si) 1000 else 1024;
         const sizes = if (self.base == .si) &si_sizes else &iec_sizes;
 
@@ -145,15 +147,58 @@ fn getMultiplier(unit: []const u8) ?u64 {
 }
 
 fn toLower(c: u8) u8 {
-    return if (c >= 'A' and c <= 'Z') c + 32 else c;
+    return std.ascii.toLower(c);
 }
 
 fn eqlLower(a: []const u8, b: []const u8) bool {
-    if (a.len != b.len) return false;
-    for (a, b) |ac, bc| {
-        if (toLower(ac) != toLower(bc)) return false;
+    return std.ascii.eqlIgnoreCase(a, b);
+}
+
+/// `comptimeBytes(4096)` -> `"4.096 kB"`
+pub inline fn comptimeBytes(comptime n: u64) []const u8 {
+    comptime {
+        return comptimeBytesImpl(n, .si, 3);
     }
-    return true;
+}
+
+/// `comptimeIBytes(4096)` -> `"4 KiB"`
+pub inline fn comptimeIBytes(comptime n: u64) []const u8 {
+    comptime {
+        return comptimeBytesImpl(n, .iec, 3);
+    }
+}
+
+pub inline fn comptimeBytesWithPrecision(comptime n: u64, comptime precision: u8) []const u8 {
+    comptime {
+        return comptimeBytesImpl(n, .si, precision);
+    }
+}
+
+pub inline fn comptimeIBytesWithPrecision(comptime n: u64, comptime precision: u8) []const u8 {
+    comptime {
+        return comptimeBytesImpl(n, .iec, precision);
+    }
+}
+
+inline fn comptimeBytesImpl(comptime n: u64, comptime base: Bytes.Base, comptime precision: u8) []const u8 {
+    comptime {
+        const base_val: u64 = if (base == .si) 1000 else 1024;
+        const sizes = if (base == .si) si_sizes else iec_sizes;
+
+        if (n < base_val) {
+            return std.fmt.comptimePrint("{d} B", .{n});
+        }
+
+        var val: f64 = @floatFromInt(n);
+        var i: usize = 0;
+
+        while (val >= @as(f64, @floatFromInt(base_val)) and i < sizes.len - 1) {
+            val /= @floatFromInt(base_val);
+            i += 1;
+        }
+
+        return std.fmt.comptimePrint("{s} {s}", .{ ftoa.comptimeFormatFloat(val, precision), sizes[i] });
+    }
 }
 
 test "Bytes SI formatting" {
@@ -187,4 +232,25 @@ test "parseBytes" {
     try std.testing.expectEqual(@as(u64, 44040192), try parseBytes("42 MiB"));
     try std.testing.expectEqual(@as(u64, 45097156608), try parseBytes("42 GiB"));
     try std.testing.expectEqual(@as(u64, 1500), try parseBytes("1.5 kB"));
+}
+
+test "comptimeBytes" {
+    try std.testing.expectEqualStrings("0 B", comptimeBytes(0));
+    try std.testing.expectEqualStrings("999 B", comptimeBytes(999));
+    try std.testing.expectEqualStrings("1 kB", comptimeBytes(1000));
+    try std.testing.expectEqualStrings("82.855 MB", comptimeBytes(82854982));
+    try std.testing.expectEqualStrings("1 GB", comptimeBytes(1000000000));
+}
+
+test "comptimeIBytes" {
+    try std.testing.expectEqualStrings("0 B", comptimeIBytes(0));
+    try std.testing.expectEqualStrings("1023 B", comptimeIBytes(1023));
+    try std.testing.expectEqualStrings("1 KiB", comptimeIBytes(1024));
+    try std.testing.expectEqualStrings("4 KiB", comptimeIBytes(4096));
+    try std.testing.expectEqualStrings("79.017 MiB", comptimeIBytes(82854982));
+}
+
+test "comptimeBytes with precision" {
+    try std.testing.expectEqualStrings("82.85 MB", comptimeBytesWithPrecision(82854982, 2));
+    try std.testing.expectEqualStrings("79.02 MiB", comptimeIBytesWithPrecision(82854982, 2));
 }

@@ -1,6 +1,9 @@
 //! Comma formatting for numbers with thousand separators
 
 const std = @import("std");
+const ftoa = @import("ftoa.zig");
+
+const Writer = std.Io.Writer;
 
 /// Integer comma formatter
 pub const Comma = struct {
@@ -15,7 +18,7 @@ pub const Comma = struct {
         return .{ .value = self.value, .separator = sep };
     }
 
-    pub fn format(self: Comma, w: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(self: Comma, w: *Writer) Writer.Error!void {
         if (self.value == 0) {
             try w.writeByte('0');
             return;
@@ -76,23 +79,12 @@ pub const CommaFloat = struct {
         return CommaFloat{ .value = value, .separator = '.', .decimal = ',' };
     }
 
-    pub fn format(self: CommaFloat, w: *std.io.Writer) std.io.Writer.Error!void {
-        if (std.math.isNan(self.value)) {
-            try w.writeAll("NaN");
-            return;
-        }
-        if (std.math.isPositiveInf(self.value)) {
-            try w.writeAll("+Inf");
-            return;
-        }
-        if (std.math.isNegativeInf(self.value)) {
-            try w.writeAll("-Inf");
-            return;
-        }
+    pub fn format(self: CommaFloat, w: *Writer) Writer.Error!void {
+        if (try ftoa.writeSpecialFloat(w, ftoa.classifyFloat(self.value))) return;
 
-        var num_buf: [32]u8 = undefined;
+        var num_buf: [ftoa.max_buf_size]u8 = undefined;
         const precision: u8 = self.precision orelse 6;
-        const num_str = formatWithPrecision(&num_buf, @abs(self.value), precision);
+        const num_str = ftoa.bufPrintFloat(&num_buf, @abs(self.value), precision);
 
         const dot_pos = std.mem.indexOf(u8, num_str, ".") orelse num_str.len;
         const int_str = num_str[0..dot_pos];
@@ -124,21 +116,6 @@ pub const CommaFloat = struct {
         }
     }
 };
-
-fn formatWithPrecision(buf: []u8, num: f64, precision: u8) []const u8 {
-    return switch (precision) {
-        0 => std.fmt.bufPrint(buf, "{d:.0}", .{num}) catch "?",
-        1 => std.fmt.bufPrint(buf, "{d:.1}", .{num}) catch "?",
-        2 => std.fmt.bufPrint(buf, "{d:.2}", .{num}) catch "?",
-        3 => std.fmt.bufPrint(buf, "{d:.3}", .{num}) catch "?",
-        4 => std.fmt.bufPrint(buf, "{d:.4}", .{num}) catch "?",
-        5 => std.fmt.bufPrint(buf, "{d:.5}", .{num}) catch "?",
-        6 => std.fmt.bufPrint(buf, "{d:.6}", .{num}) catch "?",
-        7 => std.fmt.bufPrint(buf, "{d:.7}", .{num}) catch "?",
-        8 => std.fmt.bufPrint(buf, "{d:.8}", .{num}) catch "?",
-        else => std.fmt.bufPrint(buf, "{d:.9}", .{num}) catch "?",
-    };
-}
 
 pub fn comma(value: i64) Comma {
     return Comma.init(value);
