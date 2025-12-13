@@ -9,7 +9,7 @@ Zig library for converting numbers and times to human-friendly strings
 ## Installation
 
 ```bash
-zig fetch --save git+https://github.com/burdzwastaken/zig-humanize#v0.0.1
+zig fetch --save git+https://github.com/burdzwastaken/zig-humanize#v0.0.2
 ```
 
 Then in your `build.zig`:
