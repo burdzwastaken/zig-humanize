@@ -9,7 +9,8 @@ pub const si = @import("si.zig");
 pub const times = @import("times.zig");
 
 pub const Bytes = bytes.Bytes;
-pub const IBytes = bytes.IBytes;
+pub const siBytes = bytes.si;
+pub const iecBytes = bytes.iec;
 pub const Byte = bytes.Byte;
 pub const KiByte = bytes.KiByte;
 pub const MiByte = bytes.MiByte;

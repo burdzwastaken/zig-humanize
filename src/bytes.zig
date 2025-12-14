@@ -70,7 +70,11 @@ pub const Bytes = struct {
     }
 };
 
-pub fn IBytes(value: u64) Bytes {
+pub fn si(value: u64) Bytes {
+    return Bytes.si(value);
+}
+
+pub fn iec(value: u64) Bytes {
     return Bytes.iec(value);
 }
 

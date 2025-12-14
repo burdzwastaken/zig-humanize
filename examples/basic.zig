@@ -7,9 +7,9 @@ pub fn main() !void {
     const stdout: *std.Io.Writer = &stdout_writer.interface;
 
     // Bytes
-    try stdout.print("Bytes SI:  {d} -> {f}\n", .{ @as(u64, 82854982), humanize.Bytes.si(82854982) });
-    try stdout.print("Bytes IEC: {d} -> {f}\n", .{ @as(u64, 82854982), humanize.Bytes.iec(82854982) });
-    try stdout.print("Bytes precision(2): {f}\n", .{humanize.Bytes.si(82854982).withPrecision(2)});
+    try stdout.print("Bytes SI:  {d} -> {f}\n", .{ @as(u64, 82854982), humanize.bytes.si(82854982) });
+    try stdout.print("Bytes IEC: {d} -> {f}\n", .{ @as(u64, 82854982), humanize.bytes.iec(82854982) });
+    try stdout.print("Bytes precision(2): {f}\n", .{humanize.bytes.si(82854982).withPrecision(2)});
     try stdout.print("Parse '42 MB': {d}\n", .{humanize.parseBytes("42 MB") catch 0});
 
     // Comma

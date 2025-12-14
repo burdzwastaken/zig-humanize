@@ -27,9 +27,9 @@ exe.root_module.addImport("humanize", humanize.module("humanize"));
 ### Bytes
 
 ```zig
-humanize.Bytes.si(82854982)                  // "82.855 MB"
-humanize.Bytes.si(82854982).withPrecision(2) // "82.85 MB"
-humanize.Bytes.iec(82854982)                 // "79.017 MiB"
+humanize.bytes.si(82854982)                  // "82.855 MB"
+humanize.bytes.si(82854982).withPrecision(2) // "82.85 MB"
+humanize.bytes.iec(82854982)                 // "79.017 MiB"
 humanize.parseBytes("42 MB")                 // 42000000
 humanize.parseBytes("42 MiB")                // 44040192
 
