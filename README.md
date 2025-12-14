@@ -9,7 +9,7 @@ Zig library for converting numbers and times to human-friendly strings
 ## Installation
 
 ```bash
-zig fetch --save git+https://github.com/burdzwastaken/zig-humanize#v0.0.2
+zig fetch --save git+https://github.com/burdzwastaken/zig-humanize#v0.0.3
 ```
 
 Then in your `build.zig`:
@@ -42,9 +42,9 @@ const precise = humanize.comptimeBytesWithPrecision(82854982, 2); // "82.85 MB"
 ### Comma
 
 ```zig
-humanize.comma_(1234567890)                    // "1,234,567,890"
-humanize.commaFloat(1234567.89)                // "1,234,567.89"
-humanize.comma.CommaFloat.european(1234567.89) // "1.234.567,89"
+humanize.comma.int(1234567890)            // "1,234,567,890"
+humanize.comma.float(1234567.89)          // "1,234,567.89"
+humanize.comma.Float.european(1234567.89) // "1.234.567,89"
 ```
 
 ### Ordinals

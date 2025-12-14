@@ -13,8 +13,8 @@ pub fn main() !void {
     try stdout.print("Parse '42 MB': {d}\n", .{humanize.parseBytes("42 MB") catch 0});
 
     // Comma
-    try stdout.print("Comma: {d} -> {f}\n", .{ @as(i64, 1234567890), humanize.comma_(1234567890) });
-    try stdout.print("CommaFloat: {d} -> {f}\n", .{ @as(f64, 1234567.89), humanize.commaFloat(1234567.89) });
+    try stdout.print("Comma: {d} -> {f}\n", .{ @as(i64, 1234567890), humanize.comma.int(1234567890) });
+    try stdout.print("CommaFloat: {d} -> {f}\n", .{ @as(f64, 1234567.89), humanize.comma.float(1234567.89) });
 
     // Ordinals
     try stdout.print("Ordinals: {f}, {f}, {f}, {f}, {f}\n", .{

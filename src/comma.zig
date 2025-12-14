@@ -6,19 +6,19 @@ const ftoa = @import("ftoa.zig");
 const Writer = std.Io.Writer;
 
 /// Integer comma formatter
-pub const Comma = struct {
+pub const Int = struct {
     value: i64,
     separator: u8 = ',',
 
-    pub fn init(value: i64) Comma {
+    pub fn init(value: i64) Int {
         return .{ .value = value };
     }
 
-    pub fn withSeparator(self: Comma, sep: u8) Comma {
+    pub fn withSeparator(self: Int, sep: u8) Int {
         return .{ .value = self.value, .separator = sep };
     }
 
-    pub fn format(self: Comma, w: *Writer) Writer.Error!void {
+    pub fn format(self: Int, w: *Writer) Writer.Error!void {
         if (self.value == 0) {
             try w.writeByte('0');
             return;
@@ -52,34 +52,34 @@ pub const Comma = struct {
 };
 
 /// Float comma formatter
-pub const CommaFloat = struct {
+pub const Float = struct {
     value: f64,
     separator: u8 = ',',
     decimal: u8 = '.',
     precision: ?u8 = null,
 
-    pub fn init(value: f64) CommaFloat {
+    pub fn init(value: f64) Float {
         return .{ .value = value };
     }
 
-    pub fn withSeparator(self: CommaFloat, sep: u8) CommaFloat {
+    pub fn withSeparator(self: Float, sep: u8) Float {
         return .{ .value = self.value, .separator = sep, .decimal = self.decimal, .precision = self.precision };
     }
 
-    pub fn withDecimal(self: CommaFloat, dec: u8) CommaFloat {
+    pub fn withDecimal(self: Float, dec: u8) Float {
         return .{ .value = self.value, .separator = self.separator, .decimal = dec, .precision = self.precision };
     }
 
-    pub fn withPrecision(self: CommaFloat, p: u8) CommaFloat {
+    pub fn withPrecision(self: Float, p: u8) Float {
         return .{ .value = self.value, .separator = self.separator, .decimal = self.decimal, .precision = p };
     }
 
     /// European format: `1.234,56`
-    pub fn european(value: f64) CommaFloat {
-        return CommaFloat{ .value = value, .separator = '.', .decimal = ',' };
+    pub fn european(value: f64) Float {
+        return Float{ .value = value, .separator = '.', .decimal = ',' };
     }
 
-    pub fn format(self: CommaFloat, w: *Writer) Writer.Error!void {
+    pub fn format(self: Float, w: *Writer) Writer.Error!void {
         if (try ftoa.writeSpecialFloat(w, ftoa.classifyFloat(self.value))) return;
 
         var num_buf: [ftoa.max_buf_size]u8 = undefined;
@@ -117,29 +117,29 @@ pub const CommaFloat = struct {
     }
 };
 
-pub fn comma(value: i64) Comma {
-    return Comma.init(value);
+pub fn int(value: i64) Int {
+    return Int.init(value);
 }
 
-pub fn commaFloat(value: f64) CommaFloat {
-    return CommaFloat.init(value);
+pub fn float(value: f64) Float {
+    return Float.init(value);
 }
 
 test "comma integers" {
-    try std.testing.expectFmt("0", "{f}", .{comma(0)});
-    try std.testing.expectFmt("100", "{f}", .{comma(100)});
-    try std.testing.expectFmt("1,000", "{f}", .{comma(1000)});
-    try std.testing.expectFmt("1,000,000", "{f}", .{comma(1000000)});
-    try std.testing.expectFmt("1,000,000,000", "{f}", .{comma(1000000000)});
-    try std.testing.expectFmt("-100,000", "{f}", .{comma(-100000)});
+    try std.testing.expectFmt("0", "{f}", .{int(0)});
+    try std.testing.expectFmt("100", "{f}", .{int(100)});
+    try std.testing.expectFmt("1,000", "{f}", .{int(1000)});
+    try std.testing.expectFmt("1,000,000", "{f}", .{int(1000000)});
+    try std.testing.expectFmt("1,000,000,000", "{f}", .{int(1000000000)});
+    try std.testing.expectFmt("-100,000", "{f}", .{int(-100000)});
 }
 
-test "commaFloat" {
-    try std.testing.expectFmt("834,142.32", "{f}", .{commaFloat(834142.32)});
-    try std.testing.expectFmt("1,000", "{f}", .{commaFloat(1000.0)});
-    try std.testing.expectFmt("-1,234,567.89", "{f}", .{commaFloat(-1234567.89)});
+test "comma float" {
+    try std.testing.expectFmt("834,142.32", "{f}", .{float(834142.32)});
+    try std.testing.expectFmt("1,000", "{f}", .{float(1000.0)});
+    try std.testing.expectFmt("-1,234,567.89", "{f}", .{float(-1234567.89)});
 }
 
-test "commaFloat european" {
-    try std.testing.expectFmt("834.142,32", "{f}", .{CommaFloat.european(834142.32)});
+test "comma float european" {
+    try std.testing.expectFmt("834.142,32", "{f}", .{Float.european(834142.32)});
 }
