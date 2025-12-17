@@ -25,6 +25,29 @@ pub const EByte: u64 = 1000 * PByte;
 const iec_sizes = [_][]const u8{ "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB" };
 const si_sizes = [_][]const u8{ "B", "kB", "MB", "GB", "TB", "PB", "EB" };
 
+const ByteCalc = struct {
+    value: f64,
+    unit_idx: usize,
+};
+
+fn calcBytes(n: u64, base: Bytes.Base) ByteCalc {
+    const base_val: u64 = if (base == .si) 1000 else 1024;
+
+    if (n < base_val) {
+        return .{ .value = @floatFromInt(n), .unit_idx = 0 };
+    }
+
+    var val: f64 = @floatFromInt(n);
+    var i: usize = 0;
+
+    while (val >= @as(f64, @floatFromInt(base_val)) and i < si_sizes.len - 1) {
+        val /= @floatFromInt(base_val);
+        i += 1;
+    }
+
+    return .{ .value = val, .unit_idx = i };
+}
+
 /// Byte size formatter
 pub const Bytes = struct {
     value: u64,
@@ -48,25 +71,16 @@ pub const Bytes = struct {
     }
 
     pub fn format(self: Bytes, w: *Writer) Writer.Error!void {
-        const base_val: u64 = if (self.base == .si) 1000 else 1024;
         const sizes = if (self.base == .si) &si_sizes else &iec_sizes;
-
-        if (self.value < base_val) {
-            try w.print("{d} B", .{self.value});
-            return;
-        }
-
-        var val: f64 = @floatFromInt(self.value);
-        var i: usize = 0;
-
-        while (val >= @as(f64, @floatFromInt(base_val)) and i < sizes.len - 1) {
-            val /= @floatFromInt(base_val);
-            i += 1;
-        }
-
+        const calc = calcBytes(self.value, self.base);
         const precision = self.precision orelse 3;
-        try ftoa.formatFloatWithPrecision(w, val, precision);
-        try w.print(" {s}", .{sizes[i]});
+
+        if (calc.unit_idx == 0 and calc.value == @floor(calc.value)) {
+            try w.print("{d} B", .{@as(u64, @intFromFloat(calc.value))});
+        } else {
+            try ftoa.formatFloatWithPrecision(w, calc.value, precision);
+            try w.print(" {s}", .{sizes[calc.unit_idx]});
+        }
     }
 };
 
@@ -85,33 +99,10 @@ pub const ParseBytesError = error{
 
 /// `parseBytes("42 MB")` -> `42000000`
 pub fn parseBytes(s: []const u8) ParseBytesError!u64 {
-    const trimmed = std.mem.trim(u8, s, " \t\n\r");
-    if (trimmed.len == 0) return error.InvalidFormat;
+    const parsed = ftoa.parseNumericPrefix(s, false) orelse return error.InvalidFormat;
 
-    var num_end: usize = 0;
-    var has_decimal = false;
-
-    for (trimmed, 0..) |c, i| {
-        if (c == '.') {
-            if (has_decimal) break;
-            has_decimal = true;
-            num_end = i + 1;
-        } else if (c >= '0' and c <= '9') {
-            num_end = i + 1;
-        } else if (c == '-' and i == 0) {
-            num_end = 1;
-        } else {
-            break;
-        }
-    }
-
-    if (num_end == 0) return error.InvalidFormat;
-
-    const num_str = trimmed[0..num_end];
-    const unit_str = std.mem.trim(u8, trimmed[num_end..], " \t");
-
-    const value = std.fmt.parseFloat(f64, num_str) catch return error.InvalidFormat;
-    const multiplier = getMultiplier(unit_str) orelse return error.InvalidFormat;
+    const value = std.fmt.parseFloat(f64, parsed.num) catch return error.InvalidFormat;
+    const multiplier = getMultiplier(parsed.rest) orelse return error.InvalidFormat;
 
     const result = value * @as(f64, @floatFromInt(multiplier));
     if (result < 0 or result > @as(f64, @floatFromInt(std.math.maxInt(u64)))) {
@@ -186,22 +177,14 @@ pub inline fn comptimeIBytesWithPrecision(comptime n: u64, comptime precision: u
 
 inline fn comptimeBytesImpl(comptime n: u64, comptime base: Bytes.Base, comptime precision: u8) []const u8 {
     comptime {
-        const base_val: u64 = if (base == .si) 1000 else 1024;
         const sizes = if (base == .si) si_sizes else iec_sizes;
+        const calc = calcBytes(n, base);
 
-        if (n < base_val) {
-            return std.fmt.comptimePrint("{d} B", .{n});
+        if (calc.unit_idx == 0 and calc.value == @floor(calc.value)) {
+            return std.fmt.comptimePrint("{d} B", .{@as(u64, @intFromFloat(calc.value))});
         }
 
-        var val: f64 = @floatFromInt(n);
-        var i: usize = 0;
-
-        while (val >= @as(f64, @floatFromInt(base_val)) and i < sizes.len - 1) {
-            val /= @floatFromInt(base_val);
-            i += 1;
-        }
-
-        return std.fmt.comptimePrint("{s} {s}", .{ ftoa.comptimeFormatFloat(val, precision), sizes[i] });
+        return std.fmt.comptimePrint("{s} {s}", .{ ftoa.comptimeFormatFloat(calc.value, precision), sizes[calc.unit_idx] });
     }
 }
 

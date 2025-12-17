@@ -54,14 +54,7 @@ pub fn computeSI(input: f64) SIResult {
     const log_val = @log10(abs_input);
     const target_exp: i8 = @intFromFloat(@floor(log_val));
 
-    var best_idx: usize = zero_idx;
-    for (prefixes, 0..) |prefix, i| {
-        if (prefix.exponent <= target_exp) {
-            best_idx = i;
-        } else {
-            break;
-        }
-    }
+    const best_idx = findBestPrefixIndex(target_exp);
 
     const exp: f64 = @floatFromInt(prefixes[best_idx].exponent);
     const adjusted = abs_input / std.math.pow(f64, 10.0, exp);
@@ -71,6 +64,18 @@ pub fn computeSI(input: f64) SIResult {
         .prefix = prefixes[best_idx].symbol,
         .exponent = prefixes[best_idx].exponent,
     };
+}
+
+fn findBestPrefixIndex(target_exp: i8) usize {
+    var best_idx: usize = zero_idx;
+    for (prefixes, 0..) |prefix, i| {
+        if (prefix.exponent <= target_exp) {
+            best_idx = i;
+        } else {
+            break;
+        }
+    }
+    return best_idx;
 }
 
 /// SI notation formatter
@@ -114,37 +119,10 @@ pub const ParseResult = struct {
 
 /// `parseSI("2.5 kB")` -> `{ .value = 2500, .unit = "B" }`
 pub fn parseSI(input: []const u8) ParseSIError!ParseResult {
-    const trimmed = std.mem.trim(u8, input, " \t\n\r");
-    if (trimmed.len == 0) return error.InvalidFormat;
+    const parsed = ftoa.parseNumericPrefix(input, true) orelse return error.InvalidFormat;
 
-    var num_end: usize = 0;
-    var has_decimal = false;
-    var has_exp = false;
-
-    for (trimmed, 0..) |c, i| {
-        if (c == '.') {
-            if (has_decimal) break;
-            has_decimal = true;
-            num_end = i + 1;
-        } else if (c == 'e' or c == 'E') {
-            if (has_exp) break;
-            has_exp = true;
-            num_end = i + 1;
-        } else if (c >= '0' and c <= '9') {
-            num_end = i + 1;
-        } else if ((c == '-' or c == '+') and (i == 0 or (has_exp and i == num_end))) {
-            num_end = i + 1;
-        } else {
-            break;
-        }
-    }
-
-    if (num_end == 0) return error.InvalidFormat;
-
-    const num_str = trimmed[0..num_end];
-    const rest = std.mem.trim(u8, trimmed[num_end..], " \t");
-
-    const base_value = std.fmt.parseFloat(f64, num_str) catch return error.InvalidFormat;
+    const base_value = std.fmt.parseFloat(f64, parsed.num) catch return error.InvalidFormat;
+    const rest = parsed.rest;
 
     if (rest.len == 0) {
         return .{ .value = base_value, .unit = "" };
@@ -203,53 +181,13 @@ test "SI with precision" {
 
 /// `comptimeSI(1000000, "B")` -> `"1 MB"`
 pub inline fn comptimeSI(comptime value: f64, comptime unit: []const u8) []const u8 {
-    comptime {
-        return comptimeSIImpl(value, unit, 4);
-    }
+    return comptimeSIWithPrecision(value, unit, 4);
 }
 
 pub inline fn comptimeSIWithPrecision(comptime value: f64, comptime unit: []const u8, comptime precision: u8) []const u8 {
     comptime {
-        return comptimeSIImpl(value, unit, precision);
-    }
-}
-
-inline fn comptimeSIImpl(comptime value: f64, comptime unit: []const u8, comptime precision: u8) []const u8 {
-    comptime {
-        const result = computeSIComptime(value);
+        const result = computeSI(value);
         return std.fmt.comptimePrint("{s} {s}{s}", .{ ftoa.comptimeFormatFloat(result.value, precision), result.prefix, unit });
-    }
-}
-
-inline fn computeSIComptime(comptime input: f64) SIResult {
-    comptime {
-        if (input == 0 or std.math.isNan(input) or std.math.isInf(input)) {
-            return .{ .value = input, .prefix = "", .exponent = 0 };
-        }
-
-        const abs_input = @abs(input);
-        const sign: f64 = if (input < 0) -1.0 else 1.0;
-
-        const log_val = @log10(abs_input);
-        const target_exp: i8 = @intFromFloat(@floor(log_val));
-
-        var best_idx: usize = zero_idx;
-        for (prefixes, 0..) |prefix, i| {
-            if (prefix.exponent <= target_exp) {
-                best_idx = i;
-            } else {
-                break;
-            }
-        }
-
-        const exp: f64 = @floatFromInt(prefixes[best_idx].exponent);
-        const adjusted = abs_input / std.math.pow(f64, 10.0, exp);
-
-        return .{
-            .value = sign * adjusted,
-            .prefix = prefixes[best_idx].symbol,
-            .exponent = prefixes[best_idx].exponent,
-        };
     }
 }
 

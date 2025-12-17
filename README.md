@@ -9,7 +9,7 @@ Zig library for converting numbers and times to human-friendly strings
 ## Installation
 
 ```bash
-zig fetch --save git+https://github.com/burdzwastaken/zig-humanize#v0.0.4
+zig fetch --save git+https://github.com/burdzwastaken/zig-humanize#v0.0.5
 ```
 
 Then in your `build.zig`:
@@ -33,7 +33,6 @@ humanize.bytes.iec(82854982)                 // "79.017 MiB"
 humanize.parseBytes("42 MB")                 // 42000000
 humanize.parseBytes("42 MiB")                // 44040192
 
-// Comptime
 const msg     = humanize.comptimeBytes(4096);                     // "4.096 kB"
 const iec     = humanize.comptimeIBytes(4096);                    // "4 KiB"
 const precise = humanize.comptimeBytesWithPrecision(82854982, 2); // "82.85 MB"
@@ -56,7 +55,6 @@ humanize.ordinal(3)  // "3rd"
 humanize.ordinal(11) // "11th"
 humanize.ordinal(21) // "21st"
 
-// Comptime
 const ord = humanize.comptimeOrdinal(42); // "42nd"
 ```
 
@@ -67,9 +65,8 @@ humanize.siPrefix(1000000, "B")    // "1 MB"
 humanize.siPrefix(2.2345e-12, "F") // "2.2345 pF"
 humanize.parseSI("2.5 k")          // 2500.0
 
-// Comptime
-const si_msg  = humanize.comptimeSI(1000000, "B");                    // "1 MB"
-const si_prec = humanize.comptimeSIWithPrecision(2.2345e-12, "F", 2); // "2.23 pF"
+const si_msg  = humanize.comptimeSI(1000000, "B");                       // "1 MB"
+const si_precise = humanize.comptimeSIWithPrecision(2.2345e-12, "F", 2); // "2.23 pF"
 ```
 
 ### Relative Time
@@ -78,8 +75,6 @@ const si_prec = humanize.comptimeSIWithPrecision(2.2345e-12, "F", 2); // "2.23 p
 humanize.relTime(now - humanize.Second, now, "ago", "from now")     // "1 second ago"
 humanize.relTime(now - 5 * humanize.Minute, now, "ago", "from now") // "5 minutes ago"
 humanize.relTime(now + 2 * humanize.Hour, now, "ago", "from now")   // "2 hours from now"
-
-// Constants: Second, Minute, Hour, Day, Week, Month, Year, LongTime
 ```
 
 ### Float
@@ -100,8 +95,8 @@ humanize.pluralWord(2, "bus") // "buses"
 humanize.wordSeries(&.{ "foo", "bar", "baz" })       // "foo, bar and baz"
 humanize.oxfordWordSeries(&.{ "foo", "bar", "baz" }) // "foo, bar, and baz"
 
-// Comptime
-const plural = humanize.english.comptimePluralWord(5, "index", ""); // "indices"
+const word  = humanize.comptimePluralWord(5, "index", ""); // "indices"
+const plural = humanize.comptimePlural(5, "cat", "");      // "5 cats"
 ```
 
 ## License

@@ -17,36 +17,24 @@ pub fn comptimePluralWord(comptime quantity: i64, comptime singular: []const u8,
     return comptimeAutoPluralize(singular);
 }
 
+pub inline fn comptimePlural(comptime quantity: i64, comptime singular: []const u8, comptime plural_override: []const u8) []const u8 {
+    comptime {
+        return std.fmt.comptimePrint("{d} {s}", .{ quantity, comptimePluralWord(quantity, singular, plural_override) });
+    }
+}
+
 fn comptimeAutoPluralize(comptime word: []const u8) []const u8 {
     if (word.len == 0) return "";
 
     if (getSpecialPlural(word)) |s| return s;
 
-    const last = word[word.len - 1];
-    const last_two = if (word.len >= 2) word[word.len - 2 ..] else "";
-
-    if (last == 's' or last == 'x' or last == 'z') {
-        return word ++ "es";
-    }
-    if (std.mem.eql(u8, last_two, "sh") or std.mem.eql(u8, last_two, "ch")) {
-        return word ++ "es";
-    }
-    if (last == 'y' and word.len >= 2 and !isVowel(word[word.len - 2])) {
-        return word[0 .. word.len - 1] ++ "ies";
-    }
-    if (last == 'o' and word.len >= 2 and !isVowel(word[word.len - 2])) {
-        if (isOException(word)) {
-            return word ++ "s";
-        }
-        return word ++ "es";
-    }
-    if (last == 'f') {
-        return word[0 .. word.len - 1] ++ "ves";
-    }
-    if (std.mem.eql(u8, last_two, "fe")) {
-        return word[0 .. word.len - 2] ++ "ves";
-    }
-    return word ++ "s";
+    return switch (getPluralRule(word)) {
+        .es => word ++ "es",
+        .ies => word[0 .. word.len - 1] ++ "ies",
+        .ves => word[0 .. word.len - 1] ++ "ves",
+        .ves_fe => word[0 .. word.len - 2] ++ "ves",
+        .s => word ++ "s",
+    };
 }
 
 fn isVowel(c: u8) bool {
@@ -56,7 +44,7 @@ fn isVowel(c: u8) bool {
     };
 }
 
-fn isOException(comptime word: []const u8) bool {
+fn isOException(word: []const u8) bool {
     const exceptions = [_][]const u8{ "photo", "piano", "halo", "zero", "auto", "memo", "solo" };
     for (exceptions) |exc| {
         if (std.ascii.eqlIgnoreCase(word, exc)) return true;
@@ -123,6 +111,25 @@ pub const PluralWord = struct {
     }
 };
 
+const PluralRule = enum { es, ies, ves, ves_fe, s };
+
+fn getPluralRule(word: []const u8) PluralRule {
+    if (word.len == 0) return .s;
+
+    const last = word[word.len - 1];
+    const last_two = if (word.len >= 2) word[word.len - 2 ..] else "";
+
+    if (last == 's' or last == 'x' or last == 'z') return .es;
+    if (std.mem.eql(u8, last_two, "sh") or std.mem.eql(u8, last_two, "ch")) return .es;
+    if (last == 'y' and word.len >= 2 and !isVowel(word[word.len - 2])) return .ies;
+    if (last == 'o' and word.len >= 2 and !isVowel(word[word.len - 2])) {
+        if (!isOException(word)) return .es;
+    }
+    if (last == 'f') return .ves;
+    if (std.mem.eql(u8, last_two, "fe")) return .ves_fe;
+    return .s;
+}
+
 fn runtimePluralize(w: *Writer, word: []const u8) Writer.Error!void {
     if (word.len == 0) return;
 
@@ -131,21 +138,12 @@ fn runtimePluralize(w: *Writer, word: []const u8) Writer.Error!void {
         return;
     }
 
-    const last = word[word.len - 1];
-    const last_two = if (word.len >= 2) word[word.len - 2 ..] else "";
-
-    if (last == 's' or last == 'x' or last == 'z') {
-        try w.print("{s}es", .{word});
-    } else if (std.mem.eql(u8, last_two, "sh") or std.mem.eql(u8, last_two, "ch")) {
-        try w.print("{s}es", .{word});
-    } else if (last == 'y' and word.len >= 2 and !isVowel(word[word.len - 2])) {
-        try w.print("{s}ies", .{word[0 .. word.len - 1]});
-    } else if (last == 'f') {
-        try w.print("{s}ves", .{word[0 .. word.len - 1]});
-    } else if (std.mem.eql(u8, last_two, "fe")) {
-        try w.print("{s}ves", .{word[0 .. word.len - 2]});
-    } else {
-        try w.print("{s}s", .{word});
+    switch (getPluralRule(word)) {
+        .es => try w.print("{s}es", .{word}),
+        .ies => try w.print("{s}ies", .{word[0 .. word.len - 1]}),
+        .ves => try w.print("{s}ves", .{word[0 .. word.len - 1]}),
+        .ves_fe => try w.print("{s}ves", .{word[0 .. word.len - 2]}),
+        .s => try w.print("{s}s", .{word}),
     }
 }
 
@@ -247,6 +245,12 @@ test "comptime special plurals" {
 test "comptime y ending" {
     try std.testing.expectEqualStrings("babies", comptimePluralWord(2, "baby", ""));
     try std.testing.expectEqualStrings("keys", comptimePluralWord(2, "key", ""));
+}
+
+test "comptimePlural" {
+    try std.testing.expectEqualStrings("1 object", comptimePlural(1, "object", ""));
+    try std.testing.expectEqualStrings("42 objects", comptimePlural(42, "object", ""));
+    try std.testing.expectEqualStrings("2 children", comptimePlural(2, "child", ""));
 }
 
 test "plural formatter" {

@@ -32,6 +32,8 @@ pub const comptimeIBytesWithPrecision = bytes.comptimeIBytesWithPrecision;
 
 pub const plural = english.plural;
 pub const pluralWord = english.pluralWord;
+pub const comptimePlural = english.comptimePlural;
+pub const comptimePluralWord = english.comptimePluralWord;
 pub const wordSeries = english.wordSeries;
 pub const oxfordWordSeries = english.oxfordWordSeries;
 

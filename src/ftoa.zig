@@ -47,6 +47,49 @@ pub fn bufPrintFloat(buf: []u8, num: f64, precision: u8) []const u8 {
     }) catch "?";
 }
 
+pub const ParsedNumeric = struct {
+    num: []const u8,
+    rest: []const u8,
+};
+
+pub fn parseNumericPrefix(input: []const u8, comptime allow_exp: bool) ?ParsedNumeric {
+    const trimmed = std.mem.trim(u8, input, " \t\n\r");
+    if (trimmed.len == 0) return null;
+
+    var num_end: usize = 0;
+    var has_decimal = false;
+    var has_exp = false;
+
+    for (trimmed, 0..) |c, i| {
+        if (c == '.') {
+            if (has_decimal) break;
+            has_decimal = true;
+            num_end = i + 1;
+        } else if (allow_exp and (c == 'e' or c == 'E')) {
+            if (has_exp) break;
+            has_exp = true;
+            num_end = i + 1;
+        } else if (c >= '0' and c <= '9') {
+            num_end = i + 1;
+        } else if (c == '-' or c == '+') {
+            if (i == 0 or (allow_exp and has_exp and i == num_end)) {
+                num_end = i + 1;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    if (num_end == 0) return null;
+
+    return .{
+        .num = trimmed[0..num_end],
+        .rest = std.mem.trim(u8, trimmed[num_end..], " \t"),
+    };
+}
+
 pub fn stripTrailingZeros(s: []const u8) []const u8 {
     const dot_pos = std.mem.indexOf(u8, s, ".") orelse return s;
 
@@ -62,23 +105,6 @@ pub fn stripTrailingZeros(s: []const u8) []const u8 {
     return s[0..end];
 }
 
-pub inline fn comptimeStripTrailingZeros(comptime s: []const u8) []const u8 {
-    comptime {
-        const dot_pos = std.mem.indexOf(u8, s, ".") orelse return s;
-
-        var end = s.len;
-        while (end > dot_pos + 1 and s[end - 1] == '0') {
-            end -= 1;
-        }
-
-        if (end == dot_pos + 1) {
-            end = dot_pos;
-        }
-
-        return s[0..end];
-    }
-}
-
 pub inline fn comptimeFormatFloat(comptime val: f64, comptime precision: u8) []const u8 {
     comptime {
         const raw = switch (precision) {
@@ -91,7 +117,7 @@ pub inline fn comptimeFormatFloat(comptime val: f64, comptime precision: u8) []c
             6 => std.fmt.comptimePrint("{d:.6}", .{val}),
             else => std.fmt.comptimePrint("{d:.6}", .{val}),
         };
-        return comptimeStripTrailingZeros(raw);
+        return stripTrailingZeros(raw);
     }
 }
 

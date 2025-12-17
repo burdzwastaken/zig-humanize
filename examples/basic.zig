@@ -48,12 +48,13 @@ pub fn main() !void {
     try stdout.print("Oxford: {f}\n", .{humanize.oxfordWordSeries(&words)});
 
     // Comptime
-    try stdout.print("\nComptime (baked into binary):\n", .{});
+    try stdout.print("\nComptime:\n", .{});
     try stdout.print("  comptimeOrdinal(42): {s}\n", .{comptime humanize.comptimeOrdinal(42)});
     try stdout.print("  comptimeBytes(4096): {s}\n", .{comptime humanize.comptimeBytes(4096)});
     try stdout.print("  comptimeIBytes(4096): {s}\n", .{comptime humanize.comptimeIBytes(4096)});
     try stdout.print("  comptimeSI(1000000, \"B\"): {s}\n", .{comptime humanize.comptimeSI(1000000, "B")});
-    try stdout.print("  comptimePluralWord(5, \"index\", \"\"): {s}\n", .{comptime humanize.english.comptimePluralWord(5, "index", "")});
+    try stdout.print("  comptimePluralWord(5, \"index\", \"\"): {s}\n", .{comptime humanize.comptimePluralWord(5, "index", "")});
+    try stdout.print("  comptimePlural(5, \"cat\", \"\"): {s}\n", .{comptime humanize.comptimePlural(5, "cat", "")});
 
     try stdout.flush();
 }
